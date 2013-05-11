@@ -21,23 +21,27 @@ heatmap = (function () {
 	 */
 	var store = function store(hmap) {
 
-		/** @expose */
-		var _ = {
-			// data is a two dimensional array
-			// a datapoint gets saved as data[point-x-value][point-y-value]
-			// the value at [point-x-value][point-y-value] is the occurrence of the datapoint
-			data: [],
-			// tight coupling of the heatmap object
-			heatmap: hmap
-		};
 		// the max occurrence - the heatmaps radial gradient alpha transition is based on it
 		this.max = 1;
 
-		this.get = function (key) {
-			return _[key];
+		// data is a two dimensional array
+		// a datapoint gets saved as data[point-x-value][point-y-value]
+		// the value at [point-x-value][point-y-value] is the occurrence of the datapoint
+		var data = [];
+		var heatmap = hmap;
+
+		this.getData = function() {
+			return data;
 		};
-		this.set = function (key, value) {
-			_[key] = value;
+		this.setData = function(d) {
+			data = d;
+		};
+
+		this.getHeatmap = function() {
+			return heatmap;
+		};
+		this.setHeatmap = function(h) {
+			heatmap = h;
 		};
 	};
 
@@ -49,8 +53,8 @@ heatmap = (function () {
 				return;
 
 			var me = this,
-				heatmap = me.get("heatmap"),
-				data = me.get("data");
+				heatmap = me.getHeatmap(),
+				data = me.getData();
 
 			if (!data[x])
 				data[x] = [];
@@ -61,11 +65,11 @@ heatmap = (function () {
 			// if count parameter is set increment by count otherwise by 1
 			data[x][y] += (arguments.length < 3) ? 1 : arguments[2];
 
-			me.set("data", data);
+			me.setData(data);
 			// do we have a new maximum?
 			if (me.max < data[x][y]) {
 				// max changed, we need to redraw all existing(lower) datapoints
-				heatmap.get("actx").clearRect(0, 0, heatmap.get("width"), heatmap.get("height"));
+				heatmap.getActx().clearRect(0, 0, heatmap.getWidthConf(), heatmap.getHeightConf());
 				me.setDataSet({ max: data[x][y], data: data }, true);
 				return;
 			}
@@ -78,7 +82,7 @@ heatmap = (function () {
 		 */
 		setDataSet: function (obj, internal) {
 			var me = this,
-				heatmap = me.get("heatmap"),
+				heatmap = me.getHeatmap(),
 				data = [],
 				d = obj.data,
 				dlen = d.length;
@@ -86,7 +90,7 @@ heatmap = (function () {
 			heatmap.clear();
 			this.max = obj.max;
 			// if a legend is set, update it
-			heatmap.get("legend") && heatmap.get("legend").update(obj.max);
+			heatmap.getLegend() && heatmap.getLegend().update(obj.max);
 
 			if (internal != null && internal) {
 				for (var one in d) {
@@ -114,11 +118,11 @@ heatmap = (function () {
 				}
 			}
 			heatmap.colorize();
-			this.set("data", d);
+			this.setData(d);
 		},
 		exportDataSet: function () {
 			var me = this,
-				data = me.get("data"),
+				data = me.getData(),
 				exportData = [];
 
 			for (var one in data) {
@@ -136,9 +140,9 @@ heatmap = (function () {
 			return { max: me.max, data: exportData };
 		},
 		generateRandomDataSet: function (points) {
-			var heatmap = this.get("heatmap"),
-				w = heatmap.get("width"),
-				h = heatmap.get("height");
+			var heatmap = this.getHeatmap(),
+				w = heatmap.getWidthConf(),
+				h = heatmap.getHeightConf();
 			var randomset = {},
 				max = Math.floor(Math.random() * 1000 + 1);
 			randomset.max = max;
@@ -158,18 +162,47 @@ heatmap = (function () {
 	var legend = function legend(config) {
 		this.config = config;
 
-		var _ = {
-			element: null,
-			labelsEl: null,
-			gradientCfg: null,
-			ctx: null
+		var element = null;
+		var labelsEl = null;
+		var gradientCfg = null;
+		var ctx = null;
+		var gradientArr = null;
+
+		this.getElement = function() {
+			return element;
 		};
-		this.get = function (key) {
-			return _[key];
+		this.setElement = function(el) {
+			element = el;
 		};
-		this.set = function (key, value) {
-			_[key] = value;
+
+		this.getLabelsEl = function() {
+			return labelsEl;
 		};
+		this.setLabelsEl = function(l) {
+			labelsEl = l;
+		};
+
+		this.getGradientCfg = function() {
+			return gradientCfg;
+		};
+		this.setGradientCtg = function(g) {
+			gradientCfg = g;
+		};
+
+		this.getCtx = function() {
+			return ctx;
+		};
+		this.setCtx = function(c) {
+			ctx = c;
+		};
+
+		this.getGradientArr = function() {
+			return gradientArr;
+		};
+		this.setGradientArr = function(g) {
+			gradientArr = g;
+		};
+
 		this.init();
 	};
 	legend.prototype = {
@@ -216,8 +249,8 @@ heatmap = (function () {
 			element.appendChild(labelsEl);
 			element.appendChild(gradient);
 
-			me.set("element", element);
-			me.set("labelsEl", labelsEl);
+			me.setElement(element);
+			me.setLabelsEl(labelsEl);
 
 			me.update(1);
 		},
@@ -237,11 +270,11 @@ heatmap = (function () {
 			});
 			gradientArr.unshift({ stop: 0, value: 'rgba(0,0,0,0)' });
 
-			me.set("gradientArr", gradientArr);
+			me.setGradientArr(gradientArr);
 		},
 		createGradientImage: function () {
 			var me = this,
-				gradArr = me.get("gradientArr"),
+				gradArr = me.getGradientArr(),
 				length = gradArr.length,
 				canvas = document.createElement("canvas"),
 				ctx = canvas.getContext("2d"),
@@ -273,18 +306,18 @@ heatmap = (function () {
 			ctx.stroke();
 
 			// we re-use the context for measuring the legends label widths
-			me.set("ctx", ctx);
+			me.setCtx(ctx);
 
 			return canvas.toDataURL();
 		},
 		getElement: function () {
-			return this.get("element");
+			return this.getElement();
 		},
 		update: function (max) {
 			var me = this,
-				gradient = me.get("gradientArr"),
-				ctx = me.get("ctx"),
-				labels = me.get("labelsEl"),
+				gradient = me.getGradientArr(),
+				ctx = me.getCtx(),
+				labels = me.getLabelsEl(),
 				labelText, labelsHtml = "", offset;
 
 			for (var i = 0; i < gradient.length; i++) {
@@ -310,40 +343,156 @@ heatmap = (function () {
 	 * @param {*} config
 	 */
 	var heatmap = function heatmap(config) {
-		// private variables
-		var _ = {
-			radius: 40,
-			element: {},
-			canvas: {},
-			acanvas: {},
-			ctx: {},
-			actx: {},
-			legend: null,
-			visible: true,
-			width: 0,
-			height: 0,
-			max: false,
-			gradient: false,
-			opacity: 180,
-			premultiplyAlpha: false,
-			bounds: {
-				l: 1000,
-				r: 0,
-				t: 1000,
-				b: 0
-			},
-			debug: false
+
+		var radius = 40;
+		var element = {};
+		var canvas = {};
+		var acanvas = {};
+		var ctx = {};
+		var actx = {};
+		var legend = null;
+		var visible = true;
+		var width = 0;
+		var height = 0;
+		var max = false;
+		var gradient = false;
+		var opacity = 180;
+		var premultiplyAlpha = false;
+		var bl = 1000;
+		var br = 0;
+		var bt = 1000;
+		var bb = 0;
+
+		this.getRadius = function() {
+			return radius;
 		};
+		this.setRadius = function(r) {
+			radius = r;
+		};
+
+		this.getElement = function() {
+			return element;
+		};
+		this.setElement = function(e) {
+			element = e;
+		};
+
+		this.getCanvas = function() {
+			return canvas;
+		};
+		this.setCanvas = function(c) {
+			canvas = c;
+		};
+
+		this.getAcanvas = function() {
+			return acanvas;
+		};
+		this.setAcanvas = function(a) {
+			acanvas = a;
+		};
+
+		this.getCtx = function() {
+			return ctx;
+		};
+		this.setCtx = function(c) {
+			ctx = c;
+		};
+
+		this.getActx = function() {
+			return actx;
+		};
+		this.setActx = function(a) {
+			actx = a;
+		};
+
+		this.getLegend = function() {
+			return legend;
+		};
+		this.setLegend = function(l) {
+			legend = l;
+		};
+
+		this.getVisible = function() {
+			return visible;
+		};
+		this.setVisible = function(v) {
+			visible = v;
+		};
+
+		this.getWidthConf = function() {
+			return width;
+		};
+		this.setWidthConf = function(w) {
+			width = w;
+		};
+
+		this.getHeightConf = function() {
+			return height;
+		};
+		this.setHeightConf = function(h) {
+			height = h;
+		};
+
+		this.getMax = function() {
+			return max;
+		};
+		this.setMax = function(m) {
+			max = m;
+		};
+
+		this.getGradient = function() {
+			return gradient;
+		};
+		this.setGradient = function(g) {
+			gradient = g;
+		};
+
+		this.getOpacity = function() {
+			return opacity;
+		};
+		this.setOpacity = function(o) {
+			opacity = o;
+		};
+
+		this.getPremultiplyAlpha = function() {
+			return premultiplyAlpha;
+		};
+		this.setPremultiplyAlpha = function(p) {
+			premultiplyAlpha = p;
+		};
+
+		this.getBoundsL = function() {
+			return bl;
+		};
+		this.setBoundsL = function(l) {
+			bl = l;
+		};
+
+		this.getBoundsR = function() {
+			return br;
+		};
+		this.setBoundsR = function(r) {
+			br = r;
+		};
+
+		this.getBoundsT = function() {
+			return bt;
+		};
+		this.setBoundsT = function(t) {
+			bt = t;
+		};
+
+		this.getBoundsB = function() {
+			return bb;
+		};
+		this.setBoundsB = function(b) {
+			bb = b;
+		};
+
 		// heatmap store containing the datapoints and information about the maximum
 		// accessible via instance.store
 		this.store = new store(this);
 
-		this.get = function (key) {
-			return _[key];
-		};
-		this.set = function (key, value) {
-			_[key] = value;
-		};
 		// configure the heatmap when an instance gets created
 		this.configure(config);
 		// and initialize it
@@ -356,32 +505,31 @@ heatmap = (function () {
 			var me = this,
 				rout, rin;
 
-			me.set("radius", config["radius"] || 40);
-			me.set("element", (config.element instanceof Object) ? config.element : document.getElementById(config.element));
-			me.set("visible", (config.visible != null) ? config.visible : true);
-			me.set("max", config.max || false);
-			me.set("gradient", config.gradient || { 0.45: "rgb(0,0,255)", 0.55: "rgb(0,255,255)", 0.65: "rgb(0,255,0)", 0.95: "yellow", 1.0: "rgb(255,0,0)"});    // default is the common blue to red gradient
-			me.set("opacity", parseInt(255 / (100 / config.opacity), 10) || 180);
-			me.set("width", config.width || 0);
-			me.set("height", config.height || 0);
-			me.set("debug", config.debug);
+			me.setRadius(config["radius"] || 40);
+			me.setElement((config.element instanceof Object) ? config.element : document.getElementById(config.element));
+			me.setVisible((config.visible != null) ? config.visible : true);
+			me.setMax(config.max || false);
+			me.setGradient(config.gradient || { 0.45: "rgb(0,0,255)", 0.55: "rgb(0,255,255)", 0.65: "rgb(0,255,0)", 0.95: "yellow", 1.0: "rgb(255,0,0)"});    // default is the common blue to red gradient
+			me.setOpacity(parseInt(255 / (100 / config.opacity), 10) || 180);
+			me.setWidthConf(config.width || 0);
+			me.setHeightConf(config.height || 0);
 
 			if (config.legend) {
 				var legendCfg = config.legend;
-				legendCfg.gradient = me.get("gradient");
-				me.set("legend", new legend(legendCfg));
+				legendCfg.gradient = me.getGradient();
+				me.setLegend(new legend(legendCfg));
 			}
 
 		},
 		resize: function () {
 			var me = this,
-				element = me.get("element"),
-				canvas = me.get("canvas"),
-				acanvas = me.get("acanvas");
-			canvas.width = acanvas.width = me.get("width") || element.style.width.replace(/px/, "") || me.getWidth(element);
-			this.set("width", canvas.width);
-			canvas.height = acanvas.height = me.get("height") || element.style.height.replace(/px/, "") || me.getHeight(element);
-			this.set("height", canvas.height);
+				element = me.getElement(),
+				canvas = me.getCanvas(),
+				acanvas = me.getAcanvas();
+			canvas.width = acanvas.width = me.getWidthConf() || element.style.width.replace(/px/, "") || me.getWidth(element);
+			this.setWidthConf(canvas.width);
+			canvas.height = acanvas.height = me.getHeightConf() || element.style.height.replace(/px/, "") || me.getHeight(element);
+			this.setHeightConf(canvas.height);
 		},
 
 		init: function () {
@@ -390,30 +538,26 @@ heatmap = (function () {
 				acanvas = document.createElement("canvas"),
 				ctx = canvas.getContext("2d"),
 				actx = acanvas.getContext("2d"),
-				element = me.get("element");
+				element = me.getElement();
 
 
 			me.initColorPalette();
 
-			me.set("canvas", canvas);
-			me.set("ctx", ctx);
-			me.set("acanvas", acanvas);
-			me.set("actx", actx);
+			me.setCanvas(canvas);
+			me.setCtx(ctx);
+			me.setAcanvas(acanvas);
+			me.setActx(actx);
 
 			me.resize();
 			canvas.style.cssText = acanvas.style.cssText = "position:absolute;top:0;left:0;z-index:10000000;";
 
-			if (!me.get("visible"))
+			if (!me.getVisible())
 				canvas.style.display = "none";
 
 			element.appendChild(canvas);
-			if (me.get("legend")) {
-				element.appendChild(me.get("legend").getElement());
+			if (me.getLegend()) {
+				element.appendChild(me.getLegend().getElement());
 			}
-
-			// debugging purposes only
-			if (me.get("debug"))
-				document.body.appendChild(acanvas);
 
 			actx.shadowOffsetX = 15000;
 			actx.shadowOffsetY = 15000;
@@ -423,7 +567,7 @@ heatmap = (function () {
 
 			var me = this,
 				canvas = document.createElement("canvas"),
-				gradient = me.get("gradient"),
+				gradient = me.getGradient(),
 				ctx, grad, testData;
 
 			canvas.width = "1";
@@ -439,7 +583,7 @@ heatmap = (function () {
 			testData.data[1] = testData.data[2] = 0; // 0% blue & green
 			ctx.putImageData(testData, 0, 0);
 			testData = ctx.getImageData(0, 0, 1, 1);
-			me.set("premultiplyAlpha", (testData.data[0] < 60 || testData.data[0] > 70));
+			me.setPremultiplyAlpha((testData.data[0] < 60 || testData.data[0] > 70));
 
 			for (var x in gradient) {
 				grad.addColorStop(x, gradient[x]);
@@ -448,7 +592,7 @@ heatmap = (function () {
 			ctx.fillStyle = grad;
 			ctx.fillRect(0, 0, 1, 256);
 
-			me.set("gradient", ctx.getImageData(0, 0, 1, 256).data);
+			me.setGradient(ctx.getImageData(0, 0, 1, 256).data);
 		},
 		getWidth: function (element) {
 			var width = element.offsetWidth;
@@ -475,16 +619,15 @@ heatmap = (function () {
 		colorize: function (x, y) {
 			// get the private variables
 			var me = this,
-				width = me.get("width"),
-				radius = me.get("radius"),
-				height = me.get("height"),
-				actx = me.get("actx"),
-				ctx = me.get("ctx"),
+				width = me.getWidthConf(),
+				radius = me.getRadius(),
+				height = me.getHeightConf(),
+				actx = me.getActx(),
+				ctx = me.getCtx(),
 				x2 = radius * 3,
-				premultiplyAlpha = me.get("premultiplyAlpha"),
-				palette = me.get("gradient"),
-				opacity = me.get("opacity"),
-				bounds = me.get("bounds"),
+				premultiplyAlpha = me.getPremultiplyAlpha(),
+				palette = me.getGradient(),
+				opacity = me.getOpacity(),
 				left, top, bottom, right,
 				image, imageData, length, alpha, offset, finalAlpha;
 
@@ -507,25 +650,26 @@ heatmap = (function () {
 				bottom = y + x2;
 
 			} else {
-				if (bounds['l'] < 0) {
+
+				if (me.getBoundsL() < 0) {
 					left = 0;
 				} else {
-					left = bounds['l'];
+					left = me.getBoundsL();
 				}
-				if (bounds['r'] > width) {
+				if (me.getBoundsR() > width) {
 					right = width;
 				} else {
-					right = bounds['r'];
+					right = me.getBoundsR();
 				}
-				if (bounds['t'] < 0) {
+				if (me.getBoundsT() < 0) {
 					top = 0;
 				} else {
-					top = bounds['t'];
+					top = me.getBoundsT();
 				}
-				if (bounds['b'] > height) {
+				if (me.getBoundsB() > height) {
 					bottom = height;
 				} else {
-					bottom = bounds['b'];
+					bottom = me.getBoundsB();
 				}
 			}
 
@@ -569,10 +713,8 @@ heatmap = (function () {
 		drawAlpha: function (x, y, count, colorize) {
 			// storing the variables because they will be often used
 			var me = this,
-				radius = me.get("radius"),
-				ctx = me.get("actx"),
-				max = me.get("max"),
-				bounds = me.get("bounds"),
+				radius = me.getRadius(),
+				ctx = me.getActx(),
 				xb = x - (1.5 * radius) >> 0, yb = y - (1.5 * radius) >> 0,
 				xc = x + (1.5 * radius) >> 0, yc = y + (1.5 * radius) >> 0;
 
@@ -591,50 +733,50 @@ heatmap = (function () {
 				me.colorize(xb, yb);
 			} else {
 				// or update the boundaries for the area that then should be colorized
-				if (xb < bounds["l"]) {
-					bounds["l"] = xb;
+				if (xb < me.getBoundsL()) {
+					me.setBoundsL(xb);
 				}
-				if (yb < bounds["t"]) {
-					bounds["t"] = yb;
+				if (yb < me.getBoundsT()) {
+					me.setBoundsT(yb);
 				}
-				if (xc > bounds['r']) {
-					bounds['r'] = xc;
+				if (xc > me.getBoundsR()) {
+					me.setBoundsR(xc);
 				}
-				if (yc > bounds['b']) {
-					bounds['b'] = yc;
+				if (yc > me.getBoundsB()) {
+					me.setBoundsB(yc);
 				}
 			}
 		},
 		toggleDisplay: function () {
 			var me = this,
-				visible = me.get("visible"),
-				canvas = me.get("canvas");
+				visible = me.getVisible(),
+				canvas = me.getCanvas();
 
 			if (!visible)
 				canvas.style.display = "block";
 			else
 				canvas.style.display = "none";
 
-			me.set("visible", !visible);
+			me.setVisible(!visible);
 		},
 		// dataURL export
 		getImageData: function () {
-			return this.get("canvas").toDataURL();
+			return this.getCanvas().toDataURL();
 		},
 		clear: function () {
 			var me = this,
-				w = me.get("width"),
-				h = me.get("height");
+				w = me.getWidthConf(),
+				h = me.getHeightConf();
 
-			me.store.set("data", []);
+			me.store.setData([]);
 			// @TODO: reset stores max to 1
 			//me.store.max = 1;
-			me.get("ctx").clearRect(0, 0, w, h);
-			me.get("actx").clearRect(0, 0, w, h);
+			me.getCtx().clearRect(0, 0, w, h);
+			me.getActx().clearRect(0, 0, w, h);
 		},
 		cleanup: function () {
 			var me = this;
-			me.get("element").removeChild(me.get("canvas"));
+			me.getElement().removeChild(me.getCanvas());
 		}
 	};
 
